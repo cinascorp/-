@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>3D Maps - Flights</title>
+    <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6myHzS10YXdcazAFalmXvDkrYCp5cLc8&v=beta&libraries=maps3d"></script>
+    <style>
+      html, body { height: 100%; margin: 0; padding: 0; }
+      gmp-map-3d { display: block; width: 100%; height: 100%; }
+      .legend {
+        position: absolute;
+        z-index: 5;
+        top: 12px;
+        left: 12px;
+        background: rgba(0,0,0,0.6);
+        color: #fff;
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-family: system-ui, Arial, sans-serif;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="legend">Aircraft from FR24 + ADSB.lol (mil)</div>
+    <gmp-map-3d id="map3d"
+      mode="hybrid"
+      center="37.7469897,48.7537908,226"
+      range="20000"
+      tilt="75"
+      heading="45">
+    </gmp-map-3d>
+
+    <script type="module" src="/map.js"></script>
+  </body>
+</html>
