@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAR - نمای سه‌بعدی هواپیما</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow: hidden;
+        }
+
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .control-btn.active {
+            background: #00d4ff;
+            border-color: #00d4ff;
+        }
+
+        .aircraft-info {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 250px;
+            max-width: 300px;
+        }
+
+        .aircraft-info h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+        }
+
+        .aircraft-detail {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .aircraft-detail .label {
+            color: #ccc;
+        }
+
+        .aircraft-detail .value {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+
+        .camera-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .camera-controls h4 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .control-group .value {
+            font-size: 12px;
+            color: #00d4ff;
+            text-align: center;
+        }
+
+        .map-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 999;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            background: rgba(255, 0, 0, 0.8);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 0, 0, 1);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">TAR - نمای سه‌بعدی</div>
+        <div class="controls">
+            <button class="control-btn" id="toggleFollow">دنبال کردن هواپیما</button>
+            <button class="control-btn" id="toggleOrbit">چرخش دور هواپیما</button>
+            <button class="control-btn" id="resetView">بازنشانی نمای</button>
+        </div>
+    </div>
+
+    <button class="close-btn" onclick="close3DView()">×</button>
+
+    <div class="aircraft-info" id="aircraftInfo">
+        <h3 id="aircraftCallsign">هواپیما</h3>
+        <div class="aircraft-detail">
+            <span class="label">ارتفاع:</span>
+            <span class="value" id="aircraftAltitude">0 ft</span>
+        </div>
+        <div class="aircraft-detail">
+            <span class="label">سرعت:</span>
+            <span class="value" id="aircraftSpeed">0 kts</span>
+        </div>
+        <div class="aircraft-detail">
+            <span class="label">جهت:</span>
+            <span class="value" id="aircraftHeading">0°</span>
+        </div>
+        <div class="aircraft-detail">
+            <span class="label">مبدأ:</span>
+            <span class="value" id="aircraftOrigin">-</span>
+        </div>
+        <div class="aircraft-detail">
+            <span class="label">مقصد:</span>
+            <span class="value" id="aircraftDestination">-</span>
+        </div>
+        <div class="aircraft-detail">
+            <span class="label">موقعیت:</span>
+            <span class="value" id="aircraftPosition">-</span>
+        </div>
+    </div>
+
+    <div class="camera-controls">
+        <h4>کنترل دوربین</h4>
+        <div class="control-group">
+            <label>فاصله از هواپیما</label>
+            <input type="range" id="distanceSlider" min="100" max="5000" value="1000" step="100">
+            <div class="value" id="distanceValue">1000 متر</div>
+        </div>
+        <div class="control-group">
+            <label>ارتفاع دوربین</label>
+            <input type="range" id="heightSlider" min="0" max="2000" value="500" step="50">
+            <div class="value" id="heightValue">500 متر</div>
+        </div>
+        <div class="control-group">
+            <label>زاویه چرخش</label>
+            <input type="range" id="rotationSlider" min="0" max="360" value="0" step="5">
+            <div class="value" id="rotationValue">0°</div>
+        </div>
+        <div class="control-group">
+            <label>زاویه عمودی</label>
+            <input type="range" id="pitchSlider" min="-90" max="90" value="0" step="5">
+            <div class="value" id="pitchValue">0°</div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>در حال بارگذاری نمای سه‌بعدی...</div>
+    </div>
+
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6myHzS10YXdcazAFalmXvDkrYCp5cLc8&v=beta&libraries=maps3d&callback=initMap"></script>
+    
+    <!-- Three.js for 3D aircraft model -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <script>
+        let map;
+        let aircraftMarker;
+        let aircraftModel;
+        let scene, camera, renderer;
+        let isFollowing = false;
+        let isOrbiting = false;
+        let orbitAngle = 0;
+        let aircraftData = {};
+
+        // Get URL parameters
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                icao24: params.get('icao24'),
+                lat: parseFloat(params.get('lat')),
+                lng: parseFloat(params.get('lng')),
+                alt: parseFloat(params.get('alt')),
+                heading: parseFloat(params.get('heading'))
+            };
+        }
+
+        // Initialize the map
+        function initMap() {
+            const params = getUrlParams();
+            aircraftData = params;
+
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: params.lat, lng: params.lng },
+                zoom: 15,
+                mapId: 'DEMO_MAP_ID',
+                mapTypeId: 'satellite',
+                tilt: 45,
+                heading: 0
+            });
+
+            // Create aircraft marker
+            aircraftMarker = new google.maps.Marker({
+                position: { lat: params.lat, lng: params.lng },
+                map: map,
+                title: 'Aircraft',
+                icon: {
+                    path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                    scale: 5,
+                    fillColor: '#00d4ff',
+                    fillOpacity: 0.8,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 3,
+                    rotation: params.heading
+                }
+            });
+
+            // Initialize 3D scene
+            init3DScene();
+
+            // Update aircraft info
+            updateAircraftInfo();
+
+            // Hide loading screen
+            document.getElementById('loading').style.display = 'none';
+
+            // Start animation loop
+            animate();
+        }
+
+        // Initialize 3D scene
+        function init3DScene() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Sky blue
+
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+            camera.position.set(0, 500, 1000);
+
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            // Add renderer to map
+            const mapContainer = document.getElementById('map');
+            mapContainer.appendChild(renderer.domElement);
+
+            // Load aircraft model
+            loadAircraftModel();
+
+            // Add lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1000, 1000, 500);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+
+            // Add ground plane
+            const groundGeometry = new THREE.PlaneGeometry(2000, 2000);
+            const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+        }
+
+        // Load aircraft 3D model
+        function loadAircraftModel() {
+            // Create a simple aircraft model using basic geometry
+            const aircraftGroup = new THREE.Group();
+
+            // Fuselage
+            const fuselageGeometry = new THREE.CylinderGeometry(2, 3, 40, 8);
+            const fuselageMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const fuselage = new THREE.Mesh(fuselageGeometry, fuselageMaterial);
+            fuselage.rotation.z = Math.PI / 2;
+            fuselage.castShadow = true;
+            aircraftGroup.add(fuselage);
+
+            // Wings
+            const wingGeometry = new THREE.BoxGeometry(60, 1, 8);
+            const wingMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+            const wings = new THREE.Mesh(wingGeometry, wingMaterial);
+            wings.position.y = 1;
+            wings.castShadow = true;
+            aircraftGroup.add(wings);
+
+            // Tail
+            const tailGeometry = new THREE.BoxGeometry(2, 15, 4);
+            const tailMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+            tail.position.set(0, 8, 0);
+            tail.castShadow = true;
+            aircraftGroup.add(tail);
+
+            // Engines
+            const engineGeometry = new THREE.CylinderGeometry(1.5, 1.5, 8, 8);
+            const engineMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+            
+            const leftEngine = new THREE.Mesh(engineGeometry, engineMaterial);
+            leftEngine.position.set(-15, 0, 0);
+            leftEngine.rotation.z = Math.PI / 2;
+            leftEngine.castShadow = true;
+            aircraftGroup.add(leftEngine);
+
+            const rightEngine = new THREE.Mesh(engineGeometry, engineMaterial);
+            rightEngine.position.set(15, 0, 0);
+            rightEngine.rotation.z = Math.PI / 2;
+            rightEngine.castShadow = true;
+            aircraftGroup.add(rightEngine);
+
+            // Position aircraft
+            aircraftGroup.position.set(0, aircraftData.alt / 3.28084, 0); // Convert feet to meters
+            aircraftGroup.rotation.y = (aircraftData.heading * Math.PI) / 180;
+
+            aircraftModel = aircraftGroup;
+            scene.add(aircraftModel);
+        }
+
+        // Update aircraft information
+        function updateAircraftInfo() {
+            document.getElementById('aircraftCallsign').textContent = aircraftData.icao24 || 'هواپیما';
+            document.getElementById('aircraftAltitude').textContent = Math.round(aircraftData.alt) + ' ft';
+            document.getElementById('aircraftSpeed').textContent = '500 kts'; // Mock speed
+            document.getElementById('aircraftHeading').textContent = Math.round(aircraftData.heading) + '°';
+            document.getElementById('aircraftOrigin').textContent = 'THR';
+            document.getElementById('aircraftDestination').textContent = 'IKA';
+            document.getElementById('aircraftPosition').textContent = 
+                aircraftData.lat.toFixed(4) + ', ' + aircraftData.lng.toFixed(4);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isFollowing && aircraftModel) {
+                // Follow aircraft
+                const distance = parseInt(document.getElementById('distanceSlider').value);
+                const height = parseInt(document.getElementById('heightSlider').value);
+                const rotation = parseInt(document.getElementById('rotationSlider').value);
+                const pitch = parseInt(document.getElementById('pitchSlider').value);
+
+                const radianRotation = (rotation * Math.PI) / 180;
+                const radianPitch = (pitch * Math.PI) / 180;
+
+                camera.position.x = Math.cos(radianRotation) * distance;
+                camera.position.z = Math.sin(radianRotation) * distance;
+                camera.position.y = height;
+
+                camera.lookAt(aircraftModel.position);
+                camera.rotation.x = radianPitch;
+            }
+
+            if (isOrbiting && aircraftModel) {
+                // Orbit around aircraft
+                orbitAngle += 0.01;
+                const distance = parseInt(document.getElementById('distanceSlider').value);
+                const height = parseInt(document.getElementById('heightSlider').value);
+
+                camera.position.x = Math.cos(orbitAngle) * distance;
+                camera.position.z = Math.sin(orbitAngle) * distance;
+                camera.position.y = height;
+
+                camera.lookAt(aircraftModel.position);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Control event listeners
+        document.getElementById('distanceSlider').addEventListener('input', function() {
+            document.getElementById('distanceValue').textContent = this.value + ' متر';
+        });
+
+        document.getElementById('heightSlider').addEventListener('input', function() {
+            document.getElementById('heightValue').textContent = this.value + ' متر';
+        });
+
+        document.getElementById('rotationSlider').addEventListener('input', function() {
+            document.getElementById('rotationValue').textContent = this.value + '°';
+        });
+
+        document.getElementById('pitchSlider').addEventListener('input', function() {
+            document.getElementById('pitchValue').textContent = this.value + '°';
+        });
+
+        document.getElementById('toggleFollow').addEventListener('click', function() {
+            this.classList.toggle('active');
+            isFollowing = !isFollowing;
+            isOrbiting = false;
+            document.getElementById('toggleOrbit').classList.remove('active');
+        });
+
+        document.getElementById('toggleOrbit').addEventListener('click', function() {
+            this.classList.toggle('active');
+            isOrbiting = !isOrbiting;
+            isFollowing = false;
+            document.getElementById('toggleFollow').classList.remove('active');
+        });
+
+        document.getElementById('resetView').addEventListener('click', function() {
+            isFollowing = false;
+            isOrbiting = false;
+            document.getElementById('toggleFollow').classList.remove('active');
+            document.getElementById('toggleOrbit').classList.remove('active');
+            
+            camera.position.set(0, 500, 1000);
+            camera.lookAt(0, 0, 0);
+        });
+
+        // Close 3D view
+        function close3DView() {
+            window.close();
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
